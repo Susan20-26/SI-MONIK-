@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Sidebar from '../../components/Sidebar';
 import { supabase } from '../../lib/supabaseClient';
+import { withRoleGuard } from '../../lib/withRoleGuard';
 
-export default function DetailTemuan() {
+function DetailTemuan({ profile }) {
   const router = useRouter();
   const { id } = router.query;
   const [temuan, setTemuan] = useState(null);
@@ -52,8 +53,17 @@ export default function DetailTemuan() {
         jumlah_setor: jumlah,
         file_path: filePath,
         file_name: file.name,
+        uploaded_by: profile.id,
       },
     ]);
+
+    if (!insertError) {
+      await supabase.from('log_aktivitas').insert({
+        user_id: profile.id,
+        aksi: 'upload_bukti',
+        keterangan: `Mengunggah bukti setoran untuk temuan ${temuan?.nomor_temuan || id}`,
+      });
+    }
 
     setUploading(false);
     if (insertError) return alert(insertError.message);
@@ -75,7 +85,7 @@ export default function DetailTemuan() {
 
   return (
     <div className="flex">
-      <Sidebar />
+      <Sidebar profile={profile} />
       <main className="flex-1 p-8 bg-slate-50 min-h-screen">
         <h2 className="text-2xl font-bold text-slate-800 mb-1">{temuan.nomor_temuan}</h2>
         <p className="text-slate-500 mb-6">{temuan.judul_temuan}</p>
@@ -132,3 +142,5 @@ export default function DetailTemuan() {
     </div>
   );
 }
+
+export default withRoleGuard(DetailTemuan, { menuKey: 'temuan' });

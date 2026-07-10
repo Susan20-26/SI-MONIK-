@@ -42,3 +42,17 @@ simonik-app/
 
 Lihat **Panduan_Pembuatan_Aplikasi_SI-MONIK.docx** untuk instruksi
 langkah-demi-langkah setup GitHub, Supabase, dan deploy ke Vercel.
+
+## Upgrade v2 (Role & Hak Akses per OPD)
+
+Proyek ini sudah mencakup upgrade: dashboard pengawasan (grafik progres,
+rekap per OPD, log aktivitas), upload Excel/CSV dengan parsing otomatis,
+soft delete pada Data Temuan, serta role & hak akses per OPD
+(admin / pimpinan / operator_opd).
+
+**Langkah setup upgrade:**
+1. Jalankan `supabase_schema_upgrade.sql` di Supabase SQL Editor (setelah `supabase_schema.sql`).
+2. Tambahkan `SUPABASE_SERVICE_ROLE_KEY` ke `.env.local` dan ke Environment Variables Vercel.
+3. Perbarui profil pengguna operator yang sudah ada menjadi `role='operator_opd'` beserta `opd_id`-nya lewat menu Manajemen Pengguna.
+
+Detail rancangan teknis lengkap ada di `RANCANGAN_TEKNIS_UPGRADE.md`.

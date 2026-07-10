@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabaseClient';
+import { withRoleGuard } from '../lib/withRoleGuard';
 
-export default function LogAktivitas() {
+function LogAktivitas({ profile }) {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
@@ -19,7 +20,7 @@ export default function LogAktivitas() {
 
   return (
     <div className="flex">
-      <Sidebar />
+      <Sidebar profile={profile} />
       <main className="flex-1 p-8 bg-slate-50 min-h-screen">
         <h2 className="text-2xl font-bold text-slate-800 mb-6">Riwayat Aktivitas</h2>
         <div className="bg-white rounded-xl shadow-sm border divide-y">
@@ -40,3 +41,5 @@ export default function LogAktivitas() {
     </div>
   );
 }
+
+export default withRoleGuard(LogAktivitas, { menuKey: 'log' });
