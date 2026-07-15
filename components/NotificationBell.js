@@ -36,12 +36,19 @@ export default function NotificationBell({ profile }) {
   }
 
   async function loadNotifikasi() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('log_aktivitas')
       .select('id, aksi, keterangan, created_at, dibaca, actor:user_id(nama, role)')
       .eq('dibaca', false)
       .order('created_at', { ascending: false })
       .limit(30);
+    if (error) {
+      // Penyebab paling umum: migrasi supabase_schema_notifikasi.sql
+      // belum dijalankan di project Supabase (kolom `dibaca` belum ada).
+      console.error('Gagal memuat notifikasi:', error.message);
+      setItems([]);
+      return;
+    }
     const filtered = (data || []).filter((n) => n.actor?.role === 'operator_opd');
     setItems(filtered);
   }

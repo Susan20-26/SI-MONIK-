@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { hasMenuAccess } from '../lib/roleAccess';
+import { supabase } from '../lib/supabaseClient';
 import NotificationBell from './NotificationBell';
 
 const MENU = [
@@ -17,6 +18,11 @@ export default function Sidebar({ profile }) {
   const router = useRouter();
   const role = profile?.role;
   const visibleMenu = MENU.filter((item) => hasMenuAccess(item.key, role));
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push('/login');
+  }
 
   return (
     <aside className="w-64 min-h-screen bg-slate-900 text-slate-100 flex flex-col">
@@ -54,6 +60,16 @@ export default function Sidebar({ profile }) {
           </Link>
         ))}
       </nav>
+
+      <div className="px-2 py-4 border-t border-slate-800">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-4 py-2 rounded-lg text-sm text-slate-300 hover:bg-red-600 hover:text-white transition"
+        >
+          <span>🚪</span>
+          Keluar
+        </button>
+      </div>
     </aside>
   );
 }
