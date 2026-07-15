@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { hasMenuAccess } from '../lib/roleAccess';
+import NotificationBell from './NotificationBell';
 
 const MENU = [
   { key: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: '📊' },
@@ -19,9 +20,12 @@ export default function Sidebar({ profile }) {
 
   return (
     <aside className="w-64 min-h-screen bg-slate-900 text-slate-100 flex flex-col">
-      <div className="px-5 py-6 border-b border-slate-700">
-        <h1 className="text-xl font-bold tracking-wide">SI-MONIK</h1>
-        <p className="text-xs text-slate-400">Inspektorat Sumba Barat</p>
+      <div className="px-5 py-6 border-b border-slate-700 flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-wide">SI-MONIK</h1>
+          <p className="text-xs text-slate-400">Inspektorat Sumba Barat</p>
+        </div>
+        <NotificationBell profile={profile} />
       </div>
 
       {profile && (
