@@ -14,6 +14,8 @@ function TambahTemuan({ profile }) {
     judul_temuan: '',
     opd_id: isOperator ? profile.opd_id || '' : '',
     nama_wajib_setor: '',
+    penanggung_jawab: '',
+    status_bpk: '',
     nilai_kerugian: '',
     tanggal_temuan: '',
     keterangan: '',
@@ -100,6 +102,18 @@ function TambahTemuan({ profile }) {
             <div>
               <label className="text-sm text-slate-600">Nilai Kerugian (Rp)</label>
               <input name="nilai_kerugian" type="number" required value={form.nilai_kerugian} onChange={handleChange}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm text-slate-600">Penanggung Jawab</label>
+              <input name="penanggung_jawab" value={form.penanggung_jawab} onChange={handleChange}
+                className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+            </div>
+            <div>
+              <label className="text-sm text-slate-600">Status (menurut BPK)</label>
+              <input name="status_bpk" placeholder="mis. Belum, Proses, Selesai" value={form.status_bpk} onChange={handleChange}
                 className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
             </div>
           </div>

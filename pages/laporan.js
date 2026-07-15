@@ -23,10 +23,12 @@ function Laporan({ profile }) {
       'Nomor Temuan': d.nomor_temuan,
       'OPD': d.opd?.nama || d.opd,
       'Wajib Setor': d.nama_wajib_setor,
+      'Penanggung Jawab': d.penanggung_jawab,
       'Nilai Kerugian': d.nilai_kerugian,
       'Total Disetor': d.total_disetor,
       'Sisa Saldo': d.sisa_saldo,
-      'Status': d.status,
+      'Status (BPK)': d.status_bpk,
+      'Status Pelunasan': d.status,
       'Tanggal Temuan': d.tanggal_temuan,
     }));
     const ws = XLSX.utils.json_to_sheet(rows);

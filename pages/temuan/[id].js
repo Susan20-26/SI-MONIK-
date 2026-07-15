@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import Sidebar from '../../components/Sidebar';
 import { supabase } from '../../lib/supabaseClient';
+import { canEditTemuan } from '../../lib/roleAccess';
 import { withRoleGuard } from '../../lib/withRoleGuard';
 
 function DetailTemuan({ profile }) {
@@ -87,7 +89,15 @@ function DetailTemuan({ profile }) {
     <div className="flex">
       <Sidebar profile={profile} />
       <main className="flex-1 p-8 bg-slate-50 min-h-screen">
-        <h2 className="text-2xl font-bold text-slate-800 mb-1">{temuan.nomor_temuan}</h2>
+        <div className="flex justify-between items-start mb-1">
+          <h2 className="text-2xl font-bold text-slate-800">{temuan.nomor_temuan}</h2>
+          {canEditTemuan(profile, temuan) && (
+            <Link href={`/temuan/edit/${temuan.id}`}
+              className="border text-sky-600 border-sky-200 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-sky-50">
+              Edit Data
+            </Link>
+          )}
+        </div>
         <p className="text-slate-500 mb-6">{temuan.judul_temuan}</p>
 
         <div className="bg-white rounded-xl shadow-sm border p-5 mb-6">
@@ -95,6 +105,8 @@ function DetailTemuan({ profile }) {
             <div><span className="text-slate-500">Wajib Setor</span><p className="font-medium">{temuan.nama_wajib_setor}</p></div>
             <div><span className="text-slate-500">Nilai Kerugian</span><p className="font-medium">Rp {Number(temuan.nilai_kerugian).toLocaleString('id-ID')}</p></div>
             <div><span className="text-slate-500">Sisa Saldo</span><p className="font-medium">Rp {Number(temuan.sisa_saldo).toLocaleString('id-ID')}</p></div>
+            <div><span className="text-slate-500">Penanggung Jawab</span><p className="font-medium">{temuan.penanggung_jawab || '-'}</p></div>
+            <div><span className="text-slate-500">Status (BPK)</span><p className="font-medium">{temuan.status_bpk || '-'}</p></div>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-3">
             <div className="bg-emerald-600 h-3 rounded-full" style={{ width: `${progres}%` }} />

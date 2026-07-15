@@ -12,6 +12,15 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
+const LABEL_AKSI = {
+  tambah_temuan: 'Temuan baru',
+  edit_temuan: 'Edit data',
+  hapus_temuan: 'Hapus data',
+  pulihkan_temuan: 'Pulihkan data',
+  upload_excel: 'Upload Excel',
+  upload_bukti: 'Upload bukti setoran',
+};
+
 function waktuRelatif(iso) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const menit = Math.floor(diffMs / 60000);
@@ -56,11 +65,18 @@ export default function NotificationBell({ profile }) {
   useEffect(() => {
     if (!isAdmin) return;
     let channel;
+    let pollId;
 
     async function init() {
       await loadOperatorIds();
       await loadNotifikasi();
 
+      // Jalur utama: Supabase Realtime. Butuh migrasi
+      // supabase_schema_notifikasi.sql sudah dijalankan (menambahkan
+      // log_aktivitas ke publication supabase_realtime) DAN Realtime
+      // untuk tabel tsb diaktifkan di Supabase Dashboard -> Database ->
+      // Replication. Bila salah satu belum aktif, notifikasi baru tidak
+      // akan langsung muncul lewat jalur ini.
       channel = supabase
         .channel('notifikasi-log-aktivitas')
         .on(
@@ -82,11 +98,21 @@ export default function NotificationBell({ profile }) {
           }
         )
         .subscribe();
+
+      // Jalur cadangan: polling tiap 20 detik. Ini memastikan notifikasi
+      // tetap muncul (walau tidak seketika) meskipun Realtime belum
+      // diaktifkan di project Supabase, atau koneksi realtime terputus --
+      // supaya "operator OPD update data tapi admin tidak diberi tahu"
+      // tidak lagi bisa terjadi hanya karena konfigurasi Realtime.
+      pollId = setInterval(() => {
+        loadNotifikasi();
+      }, 20000);
     }
 
     init();
     return () => {
       if (channel) supabase.removeChannel(channel);
+      if (pollId) clearInterval(pollId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
@@ -147,7 +173,12 @@ export default function NotificationBell({ profile }) {
                 onClick={() => tandaiDibaca(n.id)}
                 className="w-full text-left px-4 py-3 hover:bg-slate-50 text-sm"
               >
-                <p className="font-medium text-slate-700">{n.actor?.nama || 'Operator OPD'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-medium text-slate-700">{n.actor?.nama || 'Operator OPD'}</p>
+                  <span className="text-[10px] uppercase tracking-wide bg-slate-100 text-slate-500 rounded px-1.5 py-0.5">
+                    {LABEL_AKSI[n.aksi] || n.aksi}
+                  </span>
+                </div>
                 <p className="text-slate-500">{n.keterangan}</p>
                 <p className="text-slate-400 text-xs mt-1">{waktuRelatif(n.created_at)}</p>
               </button>

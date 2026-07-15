@@ -1,8 +1,9 @@
 // components/UploadExcelParser.js
 // Menu "Update Excel / Parsing Otomatis". Menerima .xlsx, .xls, .csv
-// (maks 100MB), memvalidasi header sesuai template, lalu insert ke
-// tabel temuan_bpk. Operator OPD hanya boleh mengunggah data untuk
-// OPD miliknya sendiri (RLS di server juga menegakkan ini sebagai lapis kedua).
+// (maks 100MB), memvalidasi header sesuai template resmi Rekap Temuan
+// (kolom STATUS dan PENANGGUNG JAWAB terpisah), lalu insert ke tabel
+// temuan_bpk. Operator OPD hanya boleh mengunggah data untuk OPD
+// miliknya sendiri (RLS di server juga menegakkan ini sebagai lapis kedua).
 
 import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
@@ -11,26 +12,54 @@ import { CAN } from '../lib/roleAccess';
 
 const MAX_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
 
-// Header yang dikenali (case-insensitive, spasi dirapikan). Nilai di
-// kanan adalah kolom tujuan pada tabel temuan_bpk.
+// Header yang dikenali (case-insensitive, spasi & tanda baca dirapikan).
+// Nilai di kanan adalah kolom tujuan pada tabel temuan_bpk. STATUS dan
+// PENANGGUNG JAWAB sengaja dipetakan sebagai dua kolom terpisah, sesuai
+// format Excel Rekap Temuan (mis. Rekap_Dinas_Sosial.xlsx) yang memang
+// punya kolom STATUS dan PENANGGUNG JAWAB masing-masing sendiri.
 const TEMPLATE_COLUMNS = {
   'opd/skpd': 'opd',
+  'opd': 'opd',
   'no. lhp': 'nomor_temuan',
   'no lhp': 'nomor_temuan',
+  'nomor lhp': 'nomor_temuan',
   'jenis temuan': 'judul_temuan',
   'nilai temuan (rp)': 'nilai_kerugian',
   'nilai temuan': 'nilai_kerugian',
   'jumlah disetor (rp)': 'total_disetor',
   'jumlah disetor': 'total_disetor',
-  'status penanggung jawab': 'status_penanggung_jawab', // disimpan di kolom keterangan
+  'status': 'status_bpk',
+  'penanggung jawab': 'penanggung_jawab',
+  // Kompatibilitas mundur: template lama yang menggabungkan kedua kolom
+  // ini menjadi satu ("Status Penanggung Jawab"). Bila header ini yang
+  // terdeteksi (bukan dua kolom terpisah), isinya tetap diterima dan
+  // disimpan sebagai status_bpk agar file lama tidak gagal total —
+  // tetapi tidak lagi disarankan; gunakan template baru dengan kolom
+  // STATUS dan PENANGGUNG JAWAB terpisah.
+  'status penanggung jawab': 'status_bpk_legacy_gabungan',
 };
 
+// Kolom wajib pada template resmi (7 kolom, sesuai Rekap Temuan BPK):
+// OPD/SKPD | NO LHP | JENIS TEMUAN | NILAI TEMUAN (RP) | JUMLAH DISETOR (RP) | STATUS | PENANGGUNG JAWAB
 const REQUIRED_TARGETS = [
   'opd',
   'nomor_temuan',
   'judul_temuan',
   'nilai_kerugian',
   'total_disetor',
+  'status_bpk',
+  'penanggung_jawab',
+];
+
+// Bila file memakai template lama (kolom gabungan), kolom wajib yang
+// dicek jadi versi legacy supaya file lama tidak otomatis ditolak.
+const REQUIRED_TARGETS_LEGACY = [
+  'opd',
+  'nomor_temuan',
+  'judul_temuan',
+  'nilai_kerugian',
+  'total_disetor',
+  'status_bpk_legacy_gabungan',
 ];
 
 function normalizeHeader(h) {
@@ -117,11 +146,16 @@ export default function UploadExcelParser({ profile, opdList, onDone }) {
       });
 
       const mappedTargets = new Set(Object.values(mapping));
-      const missing = REQUIRED_TARGETS.filter((t) => !mappedTargets.has(t));
+      const isLegacyFormat = mappedTargets.has('status_bpk_legacy_gabungan');
+
+      const requiredTargets = isLegacyFormat ? REQUIRED_TARGETS_LEGACY : REQUIRED_TARGETS;
+      const missing = requiredTargets.filter((t) => !mappedTargets.has(t));
+
       if (missing.length > 0) {
         setErrors([
           `Header tidak sesuai template. Kolom wajib yang tidak ditemukan: ${missing.join(', ')}.`,
           `Header yang terdeteksi pada file: ${sampleHeaders.join(', ')}`,
+          'Kolom wajib: OPD/SKPD, NO LHP, JENIS TEMUAN, NILAI TEMUAN (RP), JUMLAH DISETOR (RP), STATUS, PENANGGUNG JAWAB (masing-masing kolom terpisah).',
         ]);
         setParsing(false);
         return;
@@ -140,6 +174,10 @@ export default function UploadExcelParser({ profile, opdList, onDone }) {
         const opdId = opdIdByName(opdNama);
         const nilai = toNumber(record.nilai_kerugian);
         const disetor = toNumber(record.total_disetor);
+        const statusBpk = String(
+          isLegacyFormat ? record.status_bpk_legacy_gabungan : record.status_bpk || ''
+        ).trim();
+        const penanggungJawab = String(record.penanggung_jawab || '').trim();
 
         const lineNo = idx + 2; // +2: header row + 1-index
 
@@ -152,7 +190,11 @@ export default function UploadExcelParser({ profile, opdList, onDone }) {
           return;
         }
         if (!record.nomor_temuan) {
-          rowErrors.push(`Baris ${lineNo}: No. LHP kosong.`);
+          rowErrors.push(`Baris ${lineNo}: NO LHP kosong.`);
+          return;
+        }
+        if (!isLegacyFormat && !penanggungJawab) {
+          rowErrors.push(`Baris ${lineNo}: Penanggung Jawab kosong.`);
           return;
         }
 
@@ -161,13 +203,14 @@ export default function UploadExcelParser({ profile, opdList, onDone }) {
           opd_id: opdId,
           nomor_temuan: String(record.nomor_temuan).trim(),
           judul_temuan: String(record.judul_temuan || '').trim(),
-          nama_wajib_setor: opdNama,
+          // Wajib setor = penanggung jawab perorangan pada template BPK.
+          nama_wajib_setor: penanggungJawab || opdNama,
+          penanggung_jawab: penanggungJawab || null,
+          status_bpk: statusBpk || null,
           nilai_kerugian: nilai,
           total_disetor: disetor,
           status: computeStatus(nilai, disetor),
-          keterangan: record.status_penanggung_jawab
-            ? `Status Penanggung Jawab: ${record.status_penanggung_jawab}`
-            : null,
+          keterangan: null,
           tanggal_temuan: new Date().toISOString().slice(0, 10),
         });
       });
@@ -218,8 +261,9 @@ export default function UploadExcelParser({ profile, opdList, onDone }) {
     <div className="bg-white rounded-xl shadow-sm border p-5">
       <h3 className="font-semibold text-slate-700 mb-1">Update Excel / Parsing Otomatis</h3>
       <p className="text-xs text-slate-400 mb-4">
-        Format: .xlsx, .xls, .csv — maks. 100 MB. Kolom wajib: OPD/SKPD, No. LHP,
-        Jenis Temuan, Nilai Temuan (Rp), Jumlah Disetor (Rp), Status Penanggung Jawab.
+        Format: .xlsx, .xls, .csv — maks. 100 MB. Kolom wajib (masing-masing kolom
+        terpisah): OPD/SKPD, NO LHP, JENIS TEMUAN, NILAI TEMUAN (RP), JUMLAH DISETOR (RP),
+        STATUS, PENANGGUNG JAWAB.
         {canUploadOwnOnly && ' Hanya baris untuk OPD Anda yang akan diproses.'}
       </p>
 
@@ -255,6 +299,7 @@ export default function UploadExcelParser({ profile, opdList, onDone }) {
                   <th className="px-2 py-1">Nilai</th>
                   <th className="px-2 py-1">Disetor</th>
                   <th className="px-2 py-1">Status</th>
+                  <th className="px-2 py-1">Penanggung Jawab</th>
                 </tr>
               </thead>
               <tbody>
@@ -264,7 +309,8 @@ export default function UploadExcelParser({ profile, opdList, onDone }) {
                     <td className="px-2 py-1">{r.nomor_temuan}</td>
                     <td className="px-2 py-1">{r.nilai_kerugian.toLocaleString('id-ID')}</td>
                     <td className="px-2 py-1">{r.total_disetor.toLocaleString('id-ID')}</td>
-                    <td className="px-2 py-1">{r.status}</td>
+                    <td className="px-2 py-1">{r.status_bpk || '-'}</td>
+                    <td className="px-2 py-1">{r.penanggung_jawab || '-'}</td>
                   </tr>
                 ))}
               </tbody>

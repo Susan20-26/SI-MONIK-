@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Sidebar from '../../components/Sidebar';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import { supabase } from '../../lib/supabaseClient';
-import { applyOpdScope, CAN } from '../../lib/roleAccess';
+import { applyOpdScope, canEditTemuan, CAN } from '../../lib/roleAccess';
 import { withRoleGuard } from '../../lib/withRoleGuard';
 
 function DataTemuan({ profile }) {
@@ -14,7 +14,7 @@ function DataTemuan({ profile }) {
   const [toDelete, setToDelete] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const canAdd = CAN.editAnyOpd(profile.role);
+  const canAdd = CAN.editAnyOpd(profile.role) || CAN.editOwnOpdOnly(profile.role);
   const canDelete = CAN.deleteTemuan(profile.role);
   const canRestore = CAN.restoreTemuan(profile.role);
 
@@ -134,6 +134,8 @@ function DataTemuan({ profile }) {
                 <th>Wajib Setor</th>
                 <th>Nilai Kerugian</th>
                 <th>Sisa Saldo</th>
+                <th>Penanggung Jawab</th>
+                <th>Status BPK</th>
                 <th>Status</th>
                 <th className="text-right pr-4">Aksi</th>
               </tr>
@@ -146,6 +148,8 @@ function DataTemuan({ profile }) {
                   <td>{t.nama_wajib_setor}</td>
                   <td>Rp {Number(t.nilai_kerugian).toLocaleString('id-ID')}</td>
                   <td>Rp {Number(t.sisa_saldo).toLocaleString('id-ID')}</td>
+                  <td>{t.penanggung_jawab || '-'}</td>
+                  <td>{t.status_bpk || '-'}</td>
                   <td>
                     <span
                       className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -164,6 +168,11 @@ function DataTemuan({ profile }) {
                       {!showDeleted && (
                         <Link href={`/temuan/${t.id}`} className="text-emerald-600 text-xs font-medium">
                           Detail →
+                        </Link>
+                      )}
+                      {!showDeleted && canEditTemuan(profile, t) && (
+                        <Link href={`/temuan/edit/${t.id}`} className="text-sky-600 hover:underline text-xs font-medium">
+                          Edit
                         </Link>
                       )}
                       {!showDeleted && canDelete && (
@@ -189,7 +198,7 @@ function DataTemuan({ profile }) {
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center text-slate-400 py-6">
+                  <td colSpan={9} className="text-center text-slate-400 py-6">
                     Tidak ada data.
                   </td>
                 </tr>
