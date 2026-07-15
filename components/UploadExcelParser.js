@@ -34,7 +34,11 @@ const REQUIRED_TARGETS = [
 ];
 
 function normalizeHeader(h) {
-  return String(h || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return String(h || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\/\s*/g, '/') // "OPD/ SKPD" atau "OPD /SKPD" -> "opd/skpd"
+    .replace(/\s+/g, ' ');
 }
 
 function toNumber(v) {

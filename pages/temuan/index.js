@@ -14,7 +14,7 @@ function DataTemuan({ profile }) {
   const [toDelete, setToDelete] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const canAdd = CAN.editAnyOpd(profile.role) || CAN.editOwnOpdOnly(profile.role);
+  const canAdd = CAN.editAnyOpd(profile.role);
   const canDelete = CAN.deleteTemuan(profile.role);
   const canRestore = CAN.restoreTemuan(profile.role);
 
